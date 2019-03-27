@@ -27,8 +27,8 @@ public class UserVisitParkingController {
         return ResponseEntity.ok().body(allUserParkingVisit);
     }
 
-    @RequestMapping(value = "/start",method = RequestMethod.GET)
-    public ResponseEntity<?> startParkingVisit(@RequestParam("registration") String registrationNumber){
+    @RequestMapping(value = "/start/{registration}",method = RequestMethod.GET)
+    public ResponseEntity<?> startParkingVisit(@PathVariable("registration") String registrationNumber){
         userParkingVisitService.startUserParkingVisit(registrationNumber);
         return ResponseEntity.ok().body("OK");
     }
