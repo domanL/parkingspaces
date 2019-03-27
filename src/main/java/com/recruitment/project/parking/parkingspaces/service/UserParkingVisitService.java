@@ -7,5 +7,9 @@ import java.util.List;
 public interface UserParkingVisitService {
 
     public List<UserParkingVisit> getAllUserParkingVisit();
-    void startUserParkingVisit(String registrationNumber);
+    void startUserParkingVisit(String registrationNumber, String brand, String model);
+
+    void endUserParkingVisit(String registrationNumber);
+
+    UserParkingVisit isStartingUserParkingVisit(String registrationNumber);
 }
