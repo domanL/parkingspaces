@@ -50,4 +50,10 @@ public class UserVisitParkingController {
         return ResponseEntity.ok().body(userParkingVisit);
     }
 
+    @RequestMapping(value = "/costVisit/{registration}/{isDisabled}",method = RequestMethod.GET)
+    public ResponseEntity<?> getCostAllParkingVisit(@PathVariable("registration") String registrationNumber, @PathVariable("isDisabled") boolean isDisabled) {
+        double costAllParkingVisit = userParkingVisitService.getCostAllParkingVisit(registrationNumber, isDisabled);
+        return ResponseEntity.ok().body(costAllParkingVisit);
+    }
+
 }

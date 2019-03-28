@@ -24,10 +24,6 @@ public class UserVehicle {
     @OneToMany(mappedBy = "userVehicle")
     @JsonBackReference
     private List<UserParkingVisit> userParkingVisitList;
-    @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JoinColumn(name = "idParkingUser")
-    @JsonManagedReference
-    private ParkingUser parkingUser;
 
 }
 

@@ -9,8 +9,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import static java.lang.Math.round;
 
 
 @Service
@@ -72,6 +75,40 @@ public class UserParkingVisitServiceImpl implements UserParkingVisitService {
         }
 
 
+    }
+
+    @Override
+    public double getCostAllParkingVisit(String registrationNumber, boolean isDisabled) {
+        UserVehicle userVehicle = userVehicleRepository.findByRegistration(registrationNumber);
+        if(userVehicle != null) {
+            UserParkingVisit userParkingVisit = userParkingVisitRepository.findTopByUserVehicleOrderByFinishParkingDesc(userVehicle);
+            Duration parkingVisitTime = Duration.between(userParkingVisit.getStartParking(), userParkingVisit.getFinishParking());
+            return parkingCost(parkingVisitTime.toMinutes(),isDisabled);
+        }
+        else {
+            logger.info("Vehicle with registration number: " + registrationNumber + " did not started park");
+            return -1;
+        }
+    }
+
+    double parkingCost (long parkingVisitTimeInMin, boolean isDisabled){
+        long parkingVisitTimeInHour = parkingVisitTimeInMin/60;
+        parkingVisitTimeInHour = parkingVisitTimeInHour*60<parkingVisitTimeInMin? parkingVisitTimeInHour +1 : parkingVisitTimeInHour;
+
+        if(parkingVisitTimeInHour<=1){
+            return  isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR;
+        }else if(parkingVisitTimeInHour<=2){
+            return   (isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR) + (isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED : SECOND_HOUR_PARKING_PRICE_FOR_REGULAR);
+        }
+        else{
+            double priceNextHour =  isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED : SECOND_HOUR_PARKING_PRICE_FOR_REGULAR;
+            double allParkingCost = (isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR ) + (isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED: SECOND_HOUR_PARKING_PRICE_FOR_REGULAR);
+            for (int i=3; i<=parkingVisitTimeInHour; i++){
+                priceNextHour = priceNextHour * (isDisabled ? THIRD_AND_NEXT_HOURS_PARKING_PRICE_FOR_DISABLED_MULTIPLIER : THIRD_AND_NEXT_HOURS_PARKING_PRICE_FOR_REGULAR_MULTIPLIER);
+                allParkingCost += priceNextHour;
+            }
+            return round(allParkingCost * 100.0) / 100.0;
+        }
     }
 
 

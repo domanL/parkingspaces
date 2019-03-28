@@ -6,4 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserParkingVisitRepository extends JpaRepository<UserParkingVisit, Long> {
     UserParkingVisit findTopByUserVehicleOrderByStartParkingDesc(UserVehicle userVehicle);
+    UserParkingVisit findTopByUserVehicleOrderByFinishParkingDesc(UserVehicle userVehicle);
 }
