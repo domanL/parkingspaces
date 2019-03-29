@@ -17,9 +17,10 @@ public class UserParkingVisit {
     private Long id;
     private LocalDateTime startParking;
     private LocalDateTime finishParking;
+    private double costVisit;
+    private boolean disabledUser;
     @ManyToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JoinColumn(name = "idUserVehicle")
     @JsonManagedReference
     private UserVehicle userVehicle;
-
 }

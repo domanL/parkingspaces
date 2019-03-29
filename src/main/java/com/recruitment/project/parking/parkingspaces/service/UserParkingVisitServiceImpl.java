@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -28,14 +29,14 @@ public class UserParkingVisitServiceImpl implements UserParkingVisitService {
     private UserVehicleRepository userVehicleRepository;
 
     @Override
-    public List<UserParkingVisit> getAllUserParkingVisit(){
+    public List<UserParkingVisit> getAllUserParkingVisit() {
         return userParkingVisitRepository.findAll();
     }
 
     @Override
-    public void startUserParkingVisit(String registrationNumber, String brand, String model) {
+    public void startUserParkingVisit(String registrationNumber, boolean isDisabled, String brand, String model) {
         UserVehicle userVehicle = userVehicleRepository.findByRegistration(registrationNumber);
-        if(userVehicle == null) {
+        if (userVehicle == null) {
             userVehicle = new UserVehicle();
             userVehicle.setRegistration(registrationNumber);
             userVehicle.setBrand(brand);
@@ -44,6 +45,7 @@ public class UserParkingVisitServiceImpl implements UserParkingVisitService {
         }
         UserParkingVisit userParkingVisit = new UserParkingVisit();
         userParkingVisit.setUserVehicle(userVehicle);
+        userParkingVisit.setDisabledUser(isDisabled);
         userParkingVisit.setStartParking(LocalDateTime.now());
         userParkingVisitRepository.save(userParkingVisit);
     }
@@ -51,13 +53,14 @@ public class UserParkingVisitServiceImpl implements UserParkingVisitService {
     @Override
     public void endUserParkingVisit(String registrationNumber) {
         UserVehicle userVehicle = userVehicleRepository.findByRegistration(registrationNumber);
-        if(userVehicle != null) {
+        if (userVehicle != null) {
             UserParkingVisit userParkingVisit = userParkingVisitRepository.findTopByUserVehicleOrderByStartParkingDesc(userVehicle);
             userParkingVisit.setFinishParking(LocalDateTime.now());
+            Duration parkingVisitTime = Duration.between(userParkingVisit.getStartParking(), userParkingVisit.getFinishParking());
+            userParkingVisit.setCostVisit(parkingCost(parkingVisitTime.toMinutes(), userParkingVisit.isDisabledUser()));
             userParkingVisitRepository.save(userParkingVisit);
             logger.info(userParkingVisit.getStartParking().toString());
-        }
-        else {
+        } else {
             logger.info("Vehicle with registration number: " + registrationNumber + "did not started park");
         }
     }
@@ -65,45 +68,51 @@ public class UserParkingVisitServiceImpl implements UserParkingVisitService {
     @Override
     public UserParkingVisit isStartingUserParkingVisit(String registrationNumber) {
         UserVehicle userVehicle = userVehicleRepository.findByRegistration(registrationNumber);
-        if(userVehicle != null) {
+        if (userVehicle != null) {
             UserParkingVisit userParkingVisit = userParkingVisitRepository.findTopByUserVehicleOrderByStartParkingDesc(userVehicle);
             return userParkingVisit;
-        }
-        else {
+        } else {
             logger.info("Vehicle with registration number: " + registrationNumber + " did not started park");
             return null;
         }
 
-
     }
 
     @Override
-    public double getCostAllParkingVisit(String registrationNumber, boolean isDisabled) {
+    public double getCostOneParkingVisit(String registrationNumber) {
         UserVehicle userVehicle = userVehicleRepository.findByRegistration(registrationNumber);
-        if(userVehicle != null) {
+        if (userVehicle != null) {
             UserParkingVisit userParkingVisit = userParkingVisitRepository.findTopByUserVehicleOrderByFinishParkingDesc(userVehicle);
-            Duration parkingVisitTime = Duration.between(userParkingVisit.getStartParking(), userParkingVisit.getFinishParking());
-            return parkingCost(parkingVisitTime.toMinutes(),isDisabled);
-        }
-        else {
+            return userParkingVisit.getCostVisit();
+        } else {
             logger.info("Vehicle with registration number: " + registrationNumber + " did not started park");
             return -1;
         }
     }
 
-    double parkingCost (long parkingVisitTimeInMin, boolean isDisabled){
-        long parkingVisitTimeInHour = parkingVisitTimeInMin/60;
-        parkingVisitTimeInHour = parkingVisitTimeInHour*60<parkingVisitTimeInMin? parkingVisitTimeInHour +1 : parkingVisitTimeInHour;
-
-        if(parkingVisitTimeInHour<=1){
-            return  isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR;
-        }else if(parkingVisitTimeInHour<=2){
-            return   (isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR) + (isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED : SECOND_HOUR_PARKING_PRICE_FOR_REGULAR);
+    @Override
+    public double getIncomeAllParkingVisit(LocalDate dayFrom) {
+        List<UserParkingVisit> allParkingVisitFromDay = userParkingVisitRepository.findUserParkingVisitsByFinishParkingBetween(dayFrom.atStartOfDay(), dayFrom.atTime(23, 59, 59));
+        double allIncomeFromDay = 0;
+        for (UserParkingVisit userParkingVisit : allParkingVisitFromDay) {
+            allIncomeFromDay += userParkingVisit.getCostVisit();
         }
-        else{
-            double priceNextHour =  isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED : SECOND_HOUR_PARKING_PRICE_FOR_REGULAR;
-            double allParkingCost = (isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR ) + (isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED: SECOND_HOUR_PARKING_PRICE_FOR_REGULAR);
-            for (int i=3; i<=parkingVisitTimeInHour; i++){
+
+        return round(allIncomeFromDay * 100.0) / 100.0;
+    }
+
+    double parkingCost(long parkingVisitTimeInMin, boolean isDisabled) {
+        long parkingVisitTimeInHour = parkingVisitTimeInMin / 60;
+        parkingVisitTimeInHour = parkingVisitTimeInHour * 60 < parkingVisitTimeInMin ? parkingVisitTimeInHour + 1 : parkingVisitTimeInHour;
+
+        if (parkingVisitTimeInHour <= 1) {
+            return isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR;
+        } else if (parkingVisitTimeInHour <= 2) {
+            return (isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR) + (isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED : SECOND_HOUR_PARKING_PRICE_FOR_REGULAR);
+        } else {
+            double priceNextHour = isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED : SECOND_HOUR_PARKING_PRICE_FOR_REGULAR;
+            double allParkingCost = (isDisabled ? FIRST_HOUR_PARKING_PRICE_FOR_DISABLED : FIRST_HOUR_PARKING_PRICE_FOR_REGULAR) + (isDisabled ? SECOND_HOUR_PARKING_PRICE_FOR_DISABLED : SECOND_HOUR_PARKING_PRICE_FOR_REGULAR);
+            for (int i = 3; i <= parkingVisitTimeInHour; i++) {
                 priceNextHour = priceNextHour * (isDisabled ? THIRD_AND_NEXT_HOURS_PARKING_PRICE_FOR_DISABLED_MULTIPLIER : THIRD_AND_NEXT_HOURS_PARKING_PRICE_FOR_REGULAR_MULTIPLIER);
                 allParkingCost += priceNextHour;
             }

@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface UserVehicleRepository extends JpaRepository<UserVehicle, Long>{
+public interface UserVehicleRepository extends JpaRepository<UserVehicle, Long> {
 
     UserVehicle findByRegistration(String registration);
 }
