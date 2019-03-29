@@ -1,11 +1,14 @@
 package com.recruitment.project.parking.parkingspaces.domain;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.Data;
+import lombok.Setter;
+import net.minidev.json.annotate.JsonIgnore;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import javax.persistence.*;
+import java.util.List;
+
 
 @Data
 @Entity
@@ -18,4 +21,9 @@ public class UserVehicle {
     private String brand;
     private String model;
     private String registration;
+    @OneToMany(mappedBy = "userVehicle")
+    @JsonBackReference
+    private List<UserParkingVisit> userParkingVisitList;
+
 }
+
